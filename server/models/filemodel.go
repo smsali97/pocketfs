@@ -6,5 +6,6 @@ type FileModel struct {
 	IsDirectory bool        `json:"isDirectory"`
 	Path        string      `json:"path"`
 	Name        string      `json:"name"`
+	VersionNumber int		`json:"versionNumber"`
 	Children    []*FileModel `json:"children"`
 }

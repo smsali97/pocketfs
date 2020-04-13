@@ -6,11 +6,11 @@ import (
 )
 
 var FileRepository map[string]*models.FileModel
-var once sync.Once
+var fileOnce sync.Once
 
 func GetRepository() map[string]*models.FileModel {
 
-	once.Do(func()  {
+	fileOnce.Do(func()  {
 		FileRepository = make(map[string]*models.FileModel)
 	})
 

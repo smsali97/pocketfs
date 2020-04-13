@@ -18,38 +18,29 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("File Download Endpoint Hit")
 
 
-	names, ok := r.URL.Query()["name"]
-	if !ok || len(names[0]) < 1 {
-		http.Error(w,"Url Param 'name' is missing",400)
+	qpath, ok := r.URL.Query()["path"]
+	if !ok || len(qpath[0]) < 1 {
+		http.Error(w,"Url Param 'path' is missing",400)
 		return
 	}
 
-	name := names[0]
+	path := qpath[0]
 	fileRepository := repository.GetRepository()
-	filePath := strings.Split(name, "/")
+	filePath := strings.Split(path, "/")
 	var file* models.FileModel
 
-	if len(filePath) > 1 {
 
-		for _, path := range filePath {
-			// first time
-			if file == nil {
-				file = fileRepository[path]
-			}
-			if file != nil {
-
-			}
-
+	for i, path := range filePath {
+		if i != len(path) - 1 && fileRepository[path] == nil  {
+			http.Error(w, "Directory " + path + " does not exist", 404)
+			return
 		}
-
-	} else {
-		file = fileRepository[filePath[0]]
 	}
 
-	fmt.Println(fileRepository)
+	file = fileRepository[path]
 	if file == nil {
 		//File not found, send 404
-		http.Error(w, "File not found in repository .", 404)
+		http.Error(w, "File not found in given path", 404)
 		return
 	}
 
@@ -89,7 +80,6 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	Openfile.Seek(0, 0)
 	io.Copy(w, Openfile) //'Copy' the file to the client
 	return
-
 }
 
 
@@ -97,38 +87,21 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("File Upload Endpoint Hit")
 
 	// Retrieve path of where to upload the file
-	qpath, ok := r.URL.Query()["path"]
+	qPath, ok := r.URL.Query()["path"]
 	fileRepository := repository.GetRepository()
-	if !ok || len(qpath[0]) < 1 {
+	if !ok || len(qPath[0]) < 1 {
 		http.Error(w,"Url Param 'path' is missing",400)
 		return
 	}
 
-	path := strings.Split(qpath[0],"/")
-	var directory *models.FileModel
-	var tempDirectory *models.FileModel
-	if len(path) == 0 {
-		directory = nil
-	} else {
+	paths := strings.Split(qPath[0],"/")
 
-		for _, parentDir := range path {
-			if tempDirectory == nil {
-				tempDirectory = fileRepository[parentDir]
-			} else {
-				var childDirectory *models.FileModel
-				for _, currDir := range tempDirectory.Children {
-					if currDir.IsDirectory && currDir.Name == parentDir {
-						childDirectory = currDir
-					}
-				}
-				tempDirectory = childDirectory
-			}
-			if tempDirectory == nil {
-				http.Error(w, "Directory does not exist. Cannot upload file there",400)
-				return
-			}
+	for i, path := range paths {
+		if i != len(paths) - 1 && fileRepository[path] == nil {
+			//  check if directory exists or not
+			http.Error(w, "Directory does not exist. Cannot upload file there", 400)
+			return
 		}
-		directory = tempDirectory
 	}
 
 
@@ -173,13 +146,9 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Successfully Uploaded File\n")
 
 	newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename}
-	if directory == nil {
-		fileRepository[handler.Filename] = &newFile
-	} else {
-		directory.Children = append(directory.Children,&newFile)
-	}
+	fileRepository[qPath[0] + "/" + handler.Filename] = &newFile
 
-	fmt.Println(len(fileRepository))
+	fmt.Println(fileRepository)
 
 }
 
