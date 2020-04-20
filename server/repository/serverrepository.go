@@ -5,16 +5,18 @@ import (
 	"sync"
 )
 
-var ServerRepository map[string]*models.ServerModel
+var serverRepository map[string]*models.ServerModel
+var CurrentServer *models.ServerModel
 var once sync.Once
+var ServerMutex sync.RWMutex
 
-func GetRepository() map[string]*models.ServerModel {
+func GetServerRepository() map[string]*models.ServerModel {
 
 	once.Do(func()  {
-		ServerRepository = make(map[string]*models.ServerModel)
+		serverRepository = make(map[string]*models.ServerModel)
 	})
 
-	return ServerRepository
+	return serverRepository
 }
 
 

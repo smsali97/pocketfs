@@ -26,7 +26,7 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
-	fileRepository := repository.GetRepository()
+	fileRepository := repository.GetFileRepository()
 
 	paths := strings.Split(qpath[0], "/")
 
@@ -62,7 +62,7 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
-	fileRepository := repository.GetRepository()
+	fileRepository := repository.GetFileRepository()
 	paths := strings.Split(qpath[0], "/")
 
 	// check all parent directories for correctly formulated path

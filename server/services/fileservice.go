@@ -25,7 +25,11 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := qpath[0]
-	fileRepository := repository.GetRepository()
+
+
+	repository.FileMutex.RLock() // START READING FROM FILE REPOSITORY
+
+	fileRepository := repository.GetFileRepository()
 	filePath := strings.Split(path, "/")
 	var file* models.FileModel
 
@@ -33,11 +37,13 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	for i, path := range filePath {
 		if i != len(path) - 1 && fileRepository[path] == nil  {
 			http.Error(w, "Directory " + path + " does not exist", 404)
+			repository.FileMutex.RUnlock() // FILE REPOSITORY
 			return
 		}
 	}
 
 	file = fileRepository[path]
+	repository.FileMutex.RUnlock() // END READING FROM FILE REPOSITORY
 	if file == nil {
 		//File not found, send 404
 		http.Error(w, "File not found in given path", 404)
@@ -88,7 +94,6 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve path of where to upload the file
 	qPath, ok := r.URL.Query()["path"]
-	fileRepository := repository.GetRepository()
 	if !ok || len(qPath[0]) < 1 {
 		http.Error(w,"Url Param 'path' is missing",400)
 		return
@@ -96,10 +101,14 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	paths := strings.Split(qPath[0],"/")
 
+	repository.FileMutex.Lock() // START FROM FILE REPOSITORY
+
+	fileRepository := repository.GetFileRepository()
 	for i, path := range paths {
 		if i != len(paths) - 1 && fileRepository[path] == nil {
 			//  check if directory exists or not
 			http.Error(w, "Directory does not exist. Cannot upload file there", 400)
+			repository.FileMutex.Unlock()
 			return
 		}
 	}
@@ -113,6 +122,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("Error Retrieving the File")
 		fmt.Println(err)
+		repository.FileMutex.Unlock()
 		return
 	}
 	defer file.Close()
@@ -123,12 +133,14 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.NewUUID()
 	if err != nil {
 		fmt.Println(err)
+		repository.FileMutex.Unlock()
 		return
 	}
 
 	tempFile, err := os.Create("file-server/" + id.String())
 	if err != nil {
 		fmt.Println(err)
+		repository.FileMutex.Unlock()
 		return
 	}
 	defer tempFile.Close()
@@ -138,6 +150,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fileBytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Println(err)
+		repository.FileMutex.Unlock()
 		return
 	}
 	// write this byte array to our temporary file
@@ -147,6 +160,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename}
 	fileRepository[qPath[0] + "/" + handler.Filename] = &newFile
+	repository.FileMutex.Unlock() // END FROM FILE REPOSITORY
 
 	fmt.Println(fileRepository)
 

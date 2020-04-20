@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 const MAX_TIME_TO_STAY_ALIVE = 30 // in seconds
 
 
@@ -7,9 +9,11 @@ const MAX_TIME_TO_STAY_ALIVE = 30 // in seconds
 type ServerModel struct {
 	ID          string         `json:"id"`
 	IP          string         `json:"ip"`
-	Port		int				`json:"port"`
+	Port		string				`json:"port"`
 	IsAlive    bool        `json:"isAlive"`
 	Latency     float64      `json:"latency"`
+	NoOfPings   int			`json:"noOfPings""`
 	TimeSinceLastAlive        float64      `json:"timeSinceLastAlive"`
+	LastSeen	time.Time	`json:"lastSeen"`
 }
 
