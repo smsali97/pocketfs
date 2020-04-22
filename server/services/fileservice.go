@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 
@@ -162,18 +163,27 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	// write this byte array to our temporary file
 	tempFile.Write(fileBytes)
 	// return that we have successfully uploaded our file!
-	fmt.Fprintf(w, "Successfully Uploaded File\n")
-
-	newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename}
+	fmt.Fprintf(w, "Successfully Uploaded File on Disk\n")
 	if qPath[0] == "/" {
 		qPath[0] = ""
 	} else {
 		qPath[0] += "/"
 	}
+	key := qPath[0] + handler.Filename
+	if fileRepository[key] == nil {
+		newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename, LastModified: time.Now(),
+			VersionNumber: 0}
+		fileRepository[qPath[0] + handler.Filename] = &newFile
+	} else {
+		currFile := fileRepository[key]
+		currFile.ID = id.String()
+		currFile.Name = handler.Filename
+		currFile.LastModified = time.Now()
+		currFile.VersionNumber += 1
 
-	fileRepository[qPath[0] + handler.Filename] = &newFile
+		fmt.Println("Updated File " + currFile.Name)
+	}
 	repository.FileMutex.Unlock() // END FROM FILE REPOSITORY
-
 	fmt.Println(fileRepository)
 
 }
