@@ -1,19 +1,21 @@
 package main
 
 import (
-	"../server/repository"
-	"../server/services"
-	"../server/util"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
+
+	"../server/repository"
+	"../server/services"
+	"../server/util"
 )
 
 var IP_ADDRESS = []byte{192, 168, 18, 21}
 var IP = "192.168.18.21"
 var PORT = "49401"
+
 const SUBNET_MASK = "255.255.255.0"
 
 func setupRoutes() {
@@ -29,13 +31,12 @@ func main() {
 	ip := net.IP(IP_ADDRESS)
 	broadcast := makeBroadcast(ip, mask)
 
-	services.AddServer(IP,PORT) // add yourself to the repository
+	services.AddServer(IP, PORT) // add yourself to the repository
 
 	go setupRoutes()
-	go services.ListenForBroadcast(IP,PORT,broadcast.String())
+	go services.ListenForBroadcast(IP, PORT, broadcast.String())
 
-	services.SendHello(broadcast.String(),PORT) // send hello to others so they know you exist and can contact you
-
+	services.SendHello(broadcast.String(), PORT) // send hello to others so they know you exist and can contact you
 
 	pingServers(broadcast) // periodically ping servers
 }
@@ -45,7 +46,6 @@ func pingServers(broadcast net.IP) {
 	if repository.CurrentServer == nil {
 		return
 	}
-
 
 	addr, err := net.ResolveUDPAddr("udp4", broadcast.String()+":"+PORT)
 	util.CheckError(err)
@@ -59,7 +59,7 @@ func pingServers(broadcast net.IP) {
 		server, err := json.Marshal(repository.CurrentServer)
 		repository.ServerMutex.RUnlock()
 		util.CheckError(err)
-		_, err = conn.Write([]byte(fmt.Sprintf("PING %s",server)))
+		_, err = conn.Write([]byte(fmt.Sprintf("PING %s", server)))
 		util.CheckError(err)
 		ctr++
 		time.Sleep(5 * time.Second)
@@ -73,4 +73,3 @@ func makeBroadcast(ip net.IP, mask net.IPMask) net.IP {
 	}
 	return broadcast
 }
-

@@ -33,13 +33,15 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	filePath := strings.Split(path, "/")
 	var file* models.FileModel
 
-
+	tempPath := ""
 	for i, path := range filePath {
-		if i != len(path) - 1 && fileRepository[path] == nil  {
+		tempPath += path
+		if i != len(filePath) - 1 && fileRepository[tempPath] == nil  {
 			http.Error(w, "Directory " + path + " does not exist", 404)
 			repository.FileMutex.RUnlock() // FILE REPOSITORY
 			return
 		}
+		tempPath += "/"
 	}
 
 	file = fileRepository[path]
@@ -104,16 +106,20 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	repository.FileMutex.Lock() // START FROM FILE REPOSITORY
 
 	fileRepository := repository.GetFileRepository()
-	for i, path := range paths {
-		if i != len(paths) - 1 && fileRepository[path] == nil {
-			//  check if directory exists or not
-			http.Error(w, "Directory does not exist. Cannot upload file there", 400)
-			repository.FileMutex.Unlock()
-			return
+	tempPath := ""
+	if qPath[0] != "/" {
+		for _, path := range paths {
+			tempPath += path
+			//  TODO: Extension check , isDirectory?
+			if fileRepository[tempPath] == nil {
+				//  check if directory exists or not
+				http.Error(w, "Directory does not exist. Cannot upload file there", 400)
+				repository.FileMutex.Unlock()
+				return
+			}
+			tempPath += "/"
 		}
 	}
-
-
 	// upload of 50 MB files.
 	// TODO: Add File Size Check
 	r.ParseMultipartForm(50 << 20)
@@ -159,7 +165,13 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Successfully Uploaded File\n")
 
 	newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename}
-	fileRepository[qPath[0] + "/" + handler.Filename] = &newFile
+	if qPath[0] == "/" {
+		qPath[0] = ""
+	} else {
+		qPath[0] += "/"
+	}
+
+	fileRepository[qPath[0] + handler.Filename] = &newFile
 	repository.FileMutex.Unlock() // END FROM FILE REPOSITORY
 
 	fmt.Println(fileRepository)
