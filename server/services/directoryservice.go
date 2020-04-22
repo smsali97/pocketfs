@@ -27,6 +27,8 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
+
+	repository.FileMutex.Lock()
 	fileRepository := repository.GetFileRepository()
 
 	paths := strings.Split(qpath[0], "/")
@@ -36,12 +38,14 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 		if i != len(paths)-1 && fileRepository[path] == nil {
 			fmt.Println(i)
 			fmt.Println(len(path)-1)
+			repository.FileMutex.Unlock()
 			http.Error(w, "Parent directory "+path+" doesnt exist", 404)
 			return
 		}
 	}
 
 	if fileRepository[qpath[0]] != nil {
+		repository.FileMutex.Unlock()
 		http.Error(w, "Name directory already exists in parent", 400)
 		return
 	} else {
@@ -55,7 +59,7 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 			ID:          id.String(),
 			Children:    []*models.FileModel{},
 			IsDirectory: true}
-
+		repository.FileMutex.Unlock()
 		fmt.Println(fileRepository)
 	}
 
@@ -67,11 +71,13 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
-	fileRepository := repository.GetFileRepository()
+	repository.FileMutex.Lock()
 	//paths := strings.Split(qpath[0], "/")
 
+	fileRepository := repository.GetFileRepository()
 	// check all parent directories for correctly formulated path
 	if fileRepository[qpath[0]] == nil {
+		repository.FileMutex.Unlock()
 		http.Error(w, "Directory "+ qpath[0]+ " doesnt exist", 404)
 		return
 	}
@@ -83,6 +89,6 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 			delete(fileRepository, qpath[0])
 		}
 	}
-
+	repository.FileMutex.Unlock()
 	fmt.Println(fileRepository)
 }
