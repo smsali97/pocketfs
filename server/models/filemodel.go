@@ -9,6 +9,6 @@ type FileModel struct {
 	Path          string       `json:"path"`
 	Name          string       `json:"name"`
 	VersionNumber int          `json:"versionNumber"`
-	Children      []*FileModel `json:"children"`
+	//Children      []*FileModel `json:"children"`
 	LastModified  time.Time    `json:"lastModified"`
 }

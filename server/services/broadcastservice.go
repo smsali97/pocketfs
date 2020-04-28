@@ -14,17 +14,17 @@ import (
 var MAX_DATAGRAM_SIZE = 8192
 
 func ListenForBroadcast(ip string, port string, broadcast string) {
-	addr, err := net.ResolveUDPAddr("udp4", ip + ":" + port)
+	addr, err := net.ResolveUDPAddr("udp4", ip+":"+port)
 	util.CheckError(err)
-	l, err := net.ListenUDP("udp4",addr)
+	l, err := net.ListenUDP("udp4", addr)
 	util.CheckError(err)
 	l.SetReadBuffer(MAX_DATAGRAM_SIZE)
 	for {
-		b := make([]byte,MAX_DATAGRAM_SIZE)
+		b := make([]byte, MAX_DATAGRAM_SIZE)
 		n, src, err := l.ReadFromUDP(b)
 		util.CheckError(err)
 
-		commands := strings.Split(string(b[:n])," ")
+		commands := strings.Split(string(b[:n]), " ")
 		switch commands[0] {
 		case "PING":
 			handlePing(commands)
@@ -43,10 +43,10 @@ func handlePing(commands []string) {
 		util.RaiseCustomError("Invalid Command Given For Ping")
 	}
 	repository.ServerMutex.Lock()
-	serverRepository :=  repository.GetServerRepository()
+	serverRepository := repository.GetServerRepository()
 
 	var server models.ServerModel
-	err := json.Unmarshal([]byte(commands[1]),&server)
+	err := json.Unmarshal([]byte(commands[1]), &server)
 	util.CheckError(err)
 	serverID := server.ID
 
@@ -68,9 +68,8 @@ func handleHello(commands []string) {
 		util.RaiseCustomError("Invalid Command Given For HELLO")
 	}
 	var msgServer models.ServerModel
-	err := json.Unmarshal([]byte(commands[1]),&msgServer)
+	err := json.Unmarshal([]byte(commands[1]), &msgServer)
 	util.CheckError(err)
-
 
 	serverRepository := repository.GetServerRepository()
 	if serverRepository[msgServer.ID] == nil {
@@ -91,7 +90,7 @@ func SendHello(broadcast string, port string) {
 		return
 	}
 
-	addr, err := net.ResolveUDPAddr("udp4", broadcast +":"+port)
+	addr, err := net.ResolveUDPAddr("udp4", broadcast+":"+port)
 	util.CheckError(err)
 
 	conn, err := net.DialUDP("udp4", nil, addr)

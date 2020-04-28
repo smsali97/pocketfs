@@ -1,0 +1,26 @@
+syntax = "proto3";
+package filemessage;
+import "google/protobuf/timestamp.proto";
+
+
+
+message FileMessage {
+  string name = 1;
+  string id = 2;
+  string path = 3;
+  int64 vno = 4;
+  google.protobuf.Timestamp lastModified = 5;
+  bytes fileContents = 6;
+}
+
+message FileMessageReply {
+  string id = 1;
+  string serverID = 2;
+  string desc = 3;
+  bool successful = 4;
+}
+
+service FileMessageService {
+  rpc SendFile(FileMessage) returns (FileMessageReply);
+}
+

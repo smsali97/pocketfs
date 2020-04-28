@@ -14,31 +14,28 @@ import (
 	"time"
 )
 
-
 func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("File Download Endpoint Hit")
 
-
 	qpath, ok := r.URL.Query()["path"]
 	if !ok || len(qpath[0]) < 1 {
-		http.Error(w,"Url Param 'path' is missing",400)
+		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
 
 	path := qpath[0]
 
-
 	repository.FileMutex.RLock() // START READING FROM FILE REPOSITORY
 
 	fileRepository := repository.GetFileRepository()
 	filePath := strings.Split(path, "/")
-	var file* models.FileModel
+	var file *models.FileModel
 
 	tempPath := ""
 	for i, path := range filePath {
 		tempPath += path
-		if i != len(filePath) - 1 && fileRepository[tempPath] == nil  {
-			http.Error(w, "Directory " + path + " does not exist", 404)
+		if i != len(filePath)-1 && fileRepository[tempPath] == nil {
+			http.Error(w, "Directory "+path+" does not exist", 404)
 			repository.FileMutex.RUnlock() // FILE REPOSITORY
 			return
 		}
@@ -52,7 +49,6 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "File not found in given path", 404)
 		return
 	}
-
 
 	//Check if file exists and open
 	Openfile, err := os.Open("file-server/" + file.ID)
@@ -91,18 +87,17 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-
 func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("File Upload Endpoint Hit")
 
 	// Retrieve path of where to upload the file
 	qPath, ok := r.URL.Query()["path"]
 	if !ok || len(qPath[0]) < 1 {
-		http.Error(w,"Url Param 'path' is missing",400)
+		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
 
-	paths := strings.Split(qPath[0],"/")
+	paths := strings.Split(qPath[0], "/")
 
 	repository.FileMutex.Lock() // START FROM FILE REPOSITORY
 
@@ -170,21 +165,23 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		qPath[0] += "/"
 	}
 	key := qPath[0] + handler.Filename
+	var newFile *models.FileModel
 	if fileRepository[key] == nil {
-		newFile := models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename, LastModified: time.Now(),
+		newFile = &models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename, LastModified: time.Now(),
 			VersionNumber: 0}
-		fileRepository[qPath[0] + handler.Filename] = &newFile
+		fileRepository[qPath[0]+handler.Filename] = newFile
+		fmt.Println("Uploaded File " + newFile.Name)
 	} else {
-		currFile := fileRepository[key]
-		currFile.ID = id.String()
-		currFile.Name = handler.Filename
-		currFile.LastModified = time.Now()
-		currFile.VersionNumber += 1
+		newFile := fileRepository[key]
+		newFile.ID = id.String()
+		newFile.Name = handler.Filename
+		newFile.LastModified = time.Now()
+		newFile.VersionNumber += 1
 
-		fmt.Println("Updated File " + currFile.Name)
+		fmt.Println("Updated File " + newFile.Name)
 	}
+	FileChannel <- newFile
 	repository.FileMutex.Unlock() // END FROM FILE REPOSITORY
 	fmt.Println(fileRepository)
 
 }
-

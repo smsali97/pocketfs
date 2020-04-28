@@ -12,11 +12,9 @@ var ServerMutex sync.RWMutex
 
 func GetServerRepository() map[string]*models.ServerModel {
 
-	once.Do(func()  {
+	once.Do(func() {
 		serverRepository = make(map[string]*models.ServerModel)
 	})
 
 	return serverRepository
 }
-
-

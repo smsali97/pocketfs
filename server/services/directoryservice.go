@@ -37,7 +37,7 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 	for i, path := range paths {
 		if i != len(paths)-1 && fileRepository[path] == nil {
 			fmt.Println(i)
-			fmt.Println(len(path)-1)
+			fmt.Println(len(path) - 1)
 			repository.FileMutex.Unlock()
 			http.Error(w, "Parent directory "+path+" doesnt exist", 404)
 			return
@@ -57,7 +57,7 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 		fileRepository[qpath[0]] = &models.FileModel{Name: paths[len(paths)-1],
 			Path:        qpath[0],
 			ID:          id.String(),
-			Children:    []*models.FileModel{},
+			//Children:    []*models.FileModel{},
 			IsDirectory: true}
 		repository.FileMutex.Unlock()
 		fmt.Println(fileRepository)
@@ -78,7 +78,7 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 	// check all parent directories for correctly formulated path
 	if fileRepository[qpath[0]] == nil {
 		repository.FileMutex.Unlock()
-		http.Error(w, "Directory "+ qpath[0]+ " doesnt exist", 404)
+		http.Error(w, "Directory "+qpath[0]+" doesnt exist", 404)
 		return
 	}
 
