@@ -4,9 +4,11 @@ import (
 	"../../models"
 	"../../repository"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 type FileMessage int
@@ -67,6 +69,11 @@ func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) e
 
 
 func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageReply) error {
+	// check if it should be routed to send directory
+	if request.File.IsDirectory {
+		return SendDirectory(request,reply)
+	}
+
 	reply.IsSuccessful = false
 	reply.IP = repository.CurrentServer.IP
 
@@ -104,7 +111,36 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 	}
 	reply.IsSuccessful = true
 	reply.IP = repository.CurrentServer.IP
+	print(fileRepository)
+	return nil
+}
 
+func SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
+	reply.IsSuccessful = false
+	path := request.File.Path
+	paths := strings.Split(path, "/")
+
+	repository.FileMutex.Lock()
+	defer repository.FileMutex.Unlock()
+	fileRepository := repository.GetFileRepository()
+	// check all parent directories for correctly formulated path
+	if path != "" {
+		for i, path := range paths {
+			if i != len(paths)-1 && fileRepository[path] == nil {
+				fmt.Println(i)
+				fmt.Println(len(path) - 1)
+				return errors.New("Parent directory " + path + " doesnt exist")
+			}
+		}
+	}
+
+
+	if fileRepository[path] != nil {
+		return errors.New(path + " directory already exists in parent")
+	}
+	fileRepository[path] = request.File
+	reply.IsSuccessful = true
+	print(fileRepository)
 	return nil
 }
 
