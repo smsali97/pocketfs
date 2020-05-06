@@ -3,6 +3,7 @@ package services
 import (
 	"../models"
 	"../repository"
+	"../services/filemessage"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -96,13 +97,13 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			return
 		}
-		fileRepository[qpath[0]] = &models.FileModel{Name: paths[len(paths)-1],
+		repository.FileMutex.Unlock()
+		m := &models.FileModel{Name: paths[len(paths)-1],
 			Path:        qpath[0],
 			ID:          id.String(),
 			//Children:    []*models.FileModel{},
 			IsDirectory: true}
-		repository.FileMutex.Unlock()
-		fmt.Println(fileRepository)
+		FileChannel <- &filemessage.FileMessageRequest{File:m , FileContents: nil}
 	}
 
 }
