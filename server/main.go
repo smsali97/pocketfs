@@ -1,7 +1,6 @@
 package main
 
 import (
-	"../server/models"
 	"../server/repository"
 	"../server/services"
 	"../server/util"
@@ -29,7 +28,6 @@ func main() {
 	mask := net.CIDRMask(24, 32)
 	ip := net.IP(IP_ADDRESS)
 	broadcast := makeBroadcast(ip, mask)
-	fileChannel := make(chan *models.FileModel)
 
 	services.AddServer(IP, PORT) // add yourself to the repository
 
@@ -38,7 +36,7 @@ func main() {
 
 	services.SendHello(broadcast.String(), PORT) // send hello to others so they know you exist and can contact you
 
-	go services.HandleFileTransfers(fileChannel) // handle incoming and outgoing file transfers
+	go services.HandleFileTransfers() // handle incoming and outgoing file transfers
 
 	pingServers(broadcast) // periodically ping servers
 }

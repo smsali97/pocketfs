@@ -56,9 +56,8 @@ func handlePing(commands []string) {
 		serverRepository[serverID].LastSeen = time.Now()
 		serverRepository[serverID].NoOfPings = serverRepository[serverID].NoOfPings + 1
 	} else {
-
-		//serverRepository[serverID].LastSeen = time.Now()
-		//serverRepository[serverID].NoOfPings = 0
+		serverRepository := repository.GetServerRepository()
+		serverRepository[server.ID] = &server
 	}
 	repository.ServerMutex.Unlock()
 }

@@ -11,4 +11,11 @@ type FileModel struct {
 	VersionNumber int          `json:"versionNumber"`
 	//Children      []*FileModel `json:"children"`
 	LastModified  time.Time    `json:"lastModified"`
+	SizeInBytes  int64    `json:"sizeInBytes"`
+}
+
+type ClientFileModel struct {
+	Key string `json:"key"`
+	Size int64 `json:"size"`
+	Modified string  `json:"modified"`
 }
