@@ -206,7 +206,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	// write this byte array to our temporary file
 	//tempFile.Write(fileBytes)
 	// return that we have successfully uploaded our file!
-	fmt.Fprintf(w, "Successfully Uploaded File on Disk\n")
+	fmt.Fprintf(w, "Sent Request to Upload File on Disk\n")
 	if qPath[0] == "" {
 		qPath[0] = ""
 	} else {

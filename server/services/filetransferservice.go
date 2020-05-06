@@ -22,7 +22,7 @@ func init() {
 
 func HandleFileTransfers() {
 	go handleIncomingFiles()
-	go handleOutgoingFiles()
+	handleOutgoingFiles()
 }
 
 func HandleFileRequests(filePathRequest string) []*filemessage.AskFileReply {
@@ -63,42 +63,46 @@ func HandleFileRequests(filePathRequest string) []*filemessage.AskFileReply {
 
 func handleOutgoingFiles() {
 
-	fileRequest := <- FileChannel
+	for {
+		fileRequest := <-FileChannel
+		fmt.Println("Received a file request")
 
-	repository.ServerMutex.RLock()
-	defer repository.ServerMutex.RUnlock()
-	//SENDING_THRESHOLD := len(repository.GetServerRepository()) - 1
-	SENT_CTR := 0
-	QUORUM_CTR := 0
-	var waitGroup sync.WaitGroup
-	for _, server := range repository.GetServerRepository() {
-		if !server.IsAlive {
-			continue
-		}
+		repository.ServerMutex.RLock()
+		//SENDING_THRESHOLD := len(repository.GetServerRepository()) - 1
+		SENT_CTR := 0
+		QUORUM_CTR := 0
+		var waitGroup sync.WaitGroup
 
-		client, err := rpc.Dial("tcp", server.IP + ":" + RPC_PORT)
-		if err != nil {
-			fmt.Println("%v Server is down",server.IP)
-		}
-		reply := &filemessage.FileMessageReply{}
-
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			err := client.Call("FileMessage.SendFile", fileRequest, reply)
-			if err != nil {
-				fmt.Println(" error when sending message to server ",err,server.IP)
-			} else {
-				if reply.IsSuccessful {
-					QUORUM_CTR += 1
-				}
+		for _, server := range repository.GetServerRepository() {
+			if !server.IsAlive {
+				continue
 			}
-		}()
-		SENT_CTR += 1
-	}
-	waitGroup.Wait()
-	fmt.Printf("Got a quorum of %d for %d\n",QUORUM_CTR,SENT_CTR)
 
+			client, err := rpc.Dial("tcp", server.IP+":"+RPC_PORT)
+			if err != nil {
+				fmt.Println("%v Server is down", server.IP)
+			}
+			reply := &filemessage.FileMessageReply{}
+
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				err := client.Call("FileMessage.SendFile", fileRequest, reply)
+				if err != nil {
+					fmt.Println(" error when sending message to server ", err, server.IP)
+				} else {
+					if reply.IsSuccessful {
+						QUORUM_CTR += 1
+					}
+				}
+			}()
+			SENT_CTR += 1
+		}
+		waitGroup.Wait()
+		fmt.Printf("Got a quorum of %d for %d\n", QUORUM_CTR, SENT_CTR)
+		repository.ServerMutex.RUnlock()
+
+	}
 }
 
 func handleIncomingFiles() {
