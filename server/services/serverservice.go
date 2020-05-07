@@ -18,7 +18,6 @@ func AddServer(ip string, port string) {
 	repository.CurrentServer = newServer
 
 	repository.ServerMutex.Lock()
-
 	serverRepository := repository.GetServerRepository()
 	serverRepository[newServer.ID] = newServer
 

@@ -127,6 +127,34 @@ func CheckOtherServers(path string, w http.ResponseWriter, file *models.FileMode
 	}
 }
 
+func RemoveFile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+	fmt.Println("File Download Endpoint Hit")
+
+	qpath, ok := r.URL.Query()["path"]
+	if !ok || len(qpath[0]) < 1 {
+		http.Error(w, "Url Param 'path' is missing", 400)
+		return
+	}
+
+	path := qpath[0]
+
+	repository.FileMutex.RLock() // START READING FROM FILE REPOSITORY
+	defer repository.FileMutex.RUnlock()
+	fileRepository := repository.GetFileRepository()
+	var file *models.FileModel
+	file = fileRepository[path]
+	file = CheckOtherServers(path,w,file)
+	if file == nil {
+		return
+	}
+
+
+}
+
 func UploadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")

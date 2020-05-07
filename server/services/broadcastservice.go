@@ -6,7 +6,9 @@ import (
 	"../util"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -75,11 +77,67 @@ func handleHello(commands []string) {
 		repository.ServerMutex.Lock()
 
 		serverRepository[msgServer.ID] = &msgServer
-
 		repository.ServerMutex.Unlock()
-
+		go fetchDirectories(msgServer.ID)
 		print(serverRepository)
 	}
+
+}
+
+func fetchDirectories(id string) {
+	const layout = "Mon Jan 02 15:04:05 -0700 2006"
+	repository.ServerMutex.RLock()
+	serverRepository := repository.GetServerRepository()
+	defer repository.ServerMutex.RUnlock()
+	url := serverRepository[id].IP + "/directory"
+
+	restClient := http.Client{
+		Timeout: time.Second * 20, // Maximum of 2 secs
+	}
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Couldnt fetch from server ")
+		fmt.Println(err)
+		return
+	}
+	res, getErr := restClient.Do(req)
+	if getErr != nil {
+		fmt.Println("Couldnt get from server ")
+		fmt.Println(err)
+		return
+	}
+	body, readErr := ioutil.ReadAll(res.Body)
+	if readErr != nil {
+		fmt.Println("Couldnt read from server ")
+		fmt.Println(readErr)
+		return
+	}
+	var serverFiles []models.ClientFileModel
+	jsonErr := json.Unmarshal(body, &serverFiles)
+	if jsonErr != nil {
+		fmt.Println("Couldnt read from json")
+		fmt.Println(readErr)
+		return
+	}
+	for _,serverFile := range serverFiles {
+		repository.FileMutex.Lock()
+		repo := repository.GetFileRepository()
+		if repo[serverFile.Path] == nil || repo[serverFile.Path].VersionNumber < serverFile.VersionNumber {
+			timeParse, _ := time.Parse(layout, serverFile.Modified)
+			newFile := &models.FileModel{
+				ID:            serverFile.ID,
+				IsDirectory:   serverFile.IsDirectory,
+				Path:          serverFile.Path,
+				Name:          serverFile.Name,
+				VersionNumber: serverFile.VersionNumber,
+				LastModified:  timeParse,
+				SizeInBytes:   serverFile.SizeInBytes,
+			}
+			repo[serverFile.Path] = newFile
+			repository.FileMutex.Unlock()
+		}
+	}
+
 
 }
 

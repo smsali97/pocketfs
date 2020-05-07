@@ -20,6 +20,7 @@ func setupRoutes() {
 	http.HandleFunc("/directory", services.MainDirectoryService)
 	http.HandleFunc("/download", services.DownloadFile)
 	http.HandleFunc("/upload", services.UploadFile)
+	http.HandleFunc("/remove", services.RemoveFile)
 	http.ListenAndServe(":8080", nil)
 }
 

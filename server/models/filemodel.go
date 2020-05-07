@@ -15,6 +15,12 @@ type FileModel struct {
 }
 
 type ClientFileModel struct {
+	ID            string       `json:"id"`
+	IsDirectory   bool         `json:"isDirectory"`
+	Path          string       `json:"path"`
+	Name          string       `json:"name"`
+	VersionNumber int          `json:"versionNumber"`
+	SizeInBytes  int64    `json:"sizeInBytes"`
 	Key string `json:"key"`
 	Size int64 `json:"size"`
 	Modified string  `json:"modified"`
