@@ -13,9 +13,19 @@ import (
 
 type FileMessage int
 
+type FileMessageType int
+
+const (
+	CREATE FileMessageType = 1 + iota
+	UPDATE
+	DELETE
+)
+
 type FileMessageRequest struct {
 	File *models.FileModel
 	FileContents []byte
+	PreviousID string
+	MessageType FileMessageType
 }
 
 type FileMessageReply struct {
@@ -53,6 +63,9 @@ func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) e
 
 		//Check if file exists and open
 		Openfile, err := os.Open("file-server/" + file.ID)
+		if err != nil {
+			return err
+		}
 		defer Openfile.Close() //Close after function return
 		fileBytes, err := ioutil.ReadAll(Openfile)
 		if err != nil {
@@ -70,8 +83,21 @@ func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) e
 
 func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageReply) error {
 	// check if it should be routed to send directory
+
 	if request.File.IsDirectory {
+		if request.MessageType == DELETE {
+			return DeleteDirectory(request,reply)
+		}
 		return SendDirectory(request,reply)
+	}
+	if request.MessageType == DELETE {
+		return DeleteFile(request, reply)
+ 	} else if request.MessageType == UPDATE {
+		err := os.Remove("file-server/"+ request.PreviousID)
+		if err != nil {
+			fmt.Println("Unable to delete my own previous file " + err.Error())
+			//TODO: SHould i return, what if new file is valid
+		}
 	}
 
 	reply.IsSuccessful = false
@@ -92,10 +118,18 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 		return err
 	}
 	defer tempFile.Close()
-
-
 	// write this byte array to our temporary file
-	tempFile.Write(request.FileContents)
+	var n int
+	n, err = tempFile.Write(request.FileContents)
+	if err != nil {
+		return err
+	} else {
+		fmt.Println("Wrote " ,n," of bytes")
+	}
+	err = tempFile.Sync()
+	if err != nil {
+		return err
+	}
 	if fileRepository[fileSent.Path] != nil {
 		err := os.Remove("file-server/" + fileRepository[fileSent.Path].ID)
 		if err != nil {
@@ -115,6 +149,54 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 	return nil
 }
 
+func DeleteFile(request *FileMessageRequest, reply *FileMessageReply) error {
+	reply.IsSuccessful = false
+
+	repository.FileMutex.Lock()
+	fileRepository := repository.FileRepository
+	defer repository.FileMutex.Unlock()
+
+	fileModel := fileRepository[request.File.Path]
+	if fileModel == nil {
+		return errors.New("Lol. I dont even have the file you wish to delete")
+	}
+	err := os.Remove("file-server/"+ fileModel.ID)
+	if err != nil {
+		return errors.New("Unable to physically remove the file from disk")
+	}
+	delete(fileRepository,fileModel.Path)
+	return nil
+}
+
+func DeleteDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
+	reply.IsSuccessful = false
+	repository.FileMutex.Lock()
+	//paths := strings.Split(qpath[0], "/")
+	fileRepository := repository.GetFileRepository()
+	// check all parent directories for correctly formulated path
+	if request.File == nil {
+		repository.FileMutex.Unlock()
+		return errors.New("Directory does not exist")
+	}
+	path := request.File.Path
+	// foo/bar/baz <--- foo/bar
+	isDeleted := false
+	for key := range fileRepository {
+		if len(path) <= len(key) && key[:len(path)] == path {
+			delete(fileRepository, path)
+			// TODO: What if its a file
+			isDeleted = true
+		}
+	}
+	repository.FileMutex.Unlock()
+	if !isDeleted {
+		return errors.New("Couldnt find any directory to delete with " + path)
+	}
+	reply.IsSuccessful = true
+	fmt.Println(fileRepository)
+	return nil
+}
+
 func SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
 	reply.IsSuccessful = false
 	path := request.File.Path
@@ -127,8 +209,6 @@ func SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
 	if path != "" {
 		for i, path := range paths {
 			if i != len(paths)-1 && fileRepository[path] == nil {
-				fmt.Println(i)
-				fmt.Println(len(path) - 1)
 				return errors.New("Parent directory " + path + " doesnt exist")
 			}
 		}

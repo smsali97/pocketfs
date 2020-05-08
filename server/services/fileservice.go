@@ -60,7 +60,7 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		//File not found, send 404 (but wait)
-			http.Error(w, "File not found on any server.", 404)
+			http.Error(w, err.Error(), 404)
 			return
 	}
 
@@ -132,24 +132,29 @@ func RemoveFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
-	fmt.Println("File Download Endpoint Hit")
-
 	qpath, ok := r.URL.Query()["path"]
 	if !ok || len(qpath[0]) < 1 {
 		http.Error(w, "Url Param 'path' is missing", 400)
 		return
 	}
 
+	fmt.Println("File Remove Endpoint Hit with path " + qpath[0])
+
 	path := qpath[0]
 
 	repository.FileMutex.RLock() // START READING FROM FILE REPOSITORY
-	defer repository.FileMutex.RUnlock()
 	fileRepository := repository.GetFileRepository()
 	var file *models.FileModel
 	file = fileRepository[path]
-	file = CheckOtherServers(path,w,file)
+	repository.FileMutex.RUnlock()
+	file = CheckOtherServers(path,w,file) // get the file
 	if file == nil {
 		return
+	}
+	FileChannel <- &filemessage.FileMessageRequest{
+		File:         file,
+		FileContents: nil,
+		MessageType:  filemessage.DELETE,
 	}
 
 
@@ -213,15 +218,6 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//tempFile, err := os.Create("file-server/" + id.String())
-	//if err != nil {
-	//	repository.FileMutex.Unlock()
-	//
-	//	fmt.Println(err)
-	//	return
-	//}
-	//defer tempFile.Close()
-
 	// read all of the contents of our uploaded file into a
 	// byte array
 	fileBytes, err := ioutil.ReadAll(file)
@@ -242,25 +238,32 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	key := qPath[0] + handler.Filename
 	var newFile *models.FileModel
+	var previousID string
+	var messageType filemessage.FileMessageType
 	if fileRepository[key] == nil {
 		newFile = &models.FileModel{ID: id.String(), IsDirectory: false, Name: handler.Filename, LastModified: time.Now(),
 			VersionNumber: 1, Path: key, SizeInBytes: handler.Size}
+		messageType = filemessage.CREATE
 		//fileRepository[qPath[0]+handler.Filename] = newFile
 		fmt.Println("Uploaded File " + newFile.Name)
 	} else {
-		newFile := fileRepository[key]
+		previousID = fileRepository[key].ID
+		newFile = fileRepository[key]
 		newFile.ID = id.String()
 		newFile.Name = handler.Filename
 		newFile.SizeInBytes = handler.Size
 		newFile.LastModified = time.Now()
 		newFile.VersionNumber += 1
-
+		newFile.IsDirectory = false
+		messageType = filemessage.UPDATE
 		fmt.Println("Updated File " + newFile.Name)
 	}
 	repository.FileMutex.Unlock()
 	fileRequest := &filemessage.FileMessageRequest{
 		File:         newFile,
 		FileContents: fileBytes,
+		MessageType: messageType,
+		PreviousID: previousID,
 	}
 	FileChannel <- fileRequest
 	 // END FROM FILE REPOSITORY

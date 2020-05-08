@@ -103,7 +103,7 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 			ID:          id.String(),
 			//Children:    []*models.FileModel{},
 			IsDirectory: true}
-		FileChannel <- &filemessage.FileMessageRequest{File:m , FileContents: nil}
+		FileChannel <- &filemessage.FileMessageRequest{File:m , FileContents: nil, MessageType: filemessage.CREATE}
 	}
 
 }
@@ -117,28 +117,12 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Got a request to remove " + qpath[0])
 
-	repository.FileMutex.Lock()
-	//paths := strings.Split(qpath[0], "/")
-
-	fileRepository := repository.GetFileRepository()
-	// check all parent directories for correctly formulated path
-	if fileRepository[qpath[0]] == nil {
-		repository.FileMutex.Unlock()
-		http.Error(w, "Directory "+qpath[0]+" doesnt exist", 404)
-		return
+	repository.FileMutex.RLock()
+	file := repository.GetFileRepository()[qpath[0]]
+	repository.FileMutex.RUnlock()
+	FileChannel <- &filemessage.FileMessageRequest{
+		File:        file,
+		FileContents: nil,
+		MessageType:  filemessage.DELETE,
 	}
-
-	// foo/bar/baz <--- foo/bar
-	isDeleted := false
-	for key := range fileRepository {
-		if len(qpath[0]) <= len(key) && key[:len(qpath[0])] == qpath[0] {
-			delete(fileRepository, qpath[0])
-			isDeleted = true
-		}
-	}
-	repository.FileMutex.Unlock()
-	if !isDeleted {
-		http.Error(w, "Couldn't find " + qpath[0] + " to delete", 400)
-	}
-	fmt.Println(fileRepository)
 }
