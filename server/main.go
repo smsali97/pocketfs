@@ -32,6 +32,7 @@ func main() {
 
 	services.AddServer(IP, PORT) // add yourself to the repository
 
+	services.CleanFiles()
 	go setupRoutes()
 	go services.ListenForBroadcast(IP, PORT, broadcast.String())
 

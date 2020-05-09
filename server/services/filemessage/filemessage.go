@@ -5,7 +5,6 @@ import (
 	"../../repository"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -60,14 +59,14 @@ func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) e
 	repository.FileMutex.RLock()
 	defer repository.FileMutex.RUnlock()
 	if file, ok := repository.FileRepository[request.FilePath]; ok {
-
-		//Check if file exists and open
-		Openfile, err := os.Open("file-server/" + file.ID)
+		path2, err := os.Getwd()
 		if err != nil {
-			return err
+			fmt.Println(err)
 		}
-		defer Openfile.Close() //Close after function return
-		fileBytes, err := ioutil.ReadAll(Openfile)
+		fmt.Println(path2)
+		fmt.Println(file.ID)
+		//Check if file exists and open
+		fileBytes, err := ioutil.ReadFile("file-server/" + file.ID)
 		if err != nil {
 			return err
 		}
@@ -112,12 +111,10 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 		return  errors.New("I have a later version!")
 	}
 
-	id, err := uuid.NewUUID()
-	tempFile, err := os.Create("file-server/" + id.String())
+	tempFile, err := os.Create("file-server/" + fileSent.ID)
 	if err != nil {
 		return err
 	}
-	defer tempFile.Close()
 	// write this byte array to our temporary file
 	var n int
 	n, err = tempFile.Write(request.FileContents)
@@ -138,10 +135,14 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 		// TODO: Check Path formulation
 		fileRepository[fileSent.Path].VersionNumber = fileSent.VersionNumber
 		fileRepository[fileSent.Path].LastModified = fileSent.LastModified
-		fileRepository[fileSent.Path].ID = id.String()
+		fileRepository[fileSent.Path].ID =  fileSent.ID
 		fileRepository[fileSent.Path].SizeInBytes = fileSent.SizeInBytes
 	} else {
 		fileRepository[fileSent.Path] = fileSent
+	}
+	err = tempFile.Close()
+	if err != nil {
+		return err
 	}
 	reply.IsSuccessful = true
 	reply.IP = repository.CurrentServer.IP

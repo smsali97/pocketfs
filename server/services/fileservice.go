@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +35,6 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 	path := qpath[0]
 
 	repository.FileMutex.RLock() // START READING FROM FILE REPOSITORY
-	defer repository.FileMutex.RUnlock()
 	fileRepository := repository.GetFileRepository()
 	filePath := strings.Split(path, "/")
 	var file *models.FileModel
@@ -50,6 +50,7 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 		tempPath += "/"
 	}
 	file = fileRepository[path]
+	repository.FileMutex.RUnlock()
 	file = CheckOtherServers(path,w,file)
 	if file == nil {
 		return
@@ -60,7 +61,8 @@ func DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		//File not found, send 404 (but wait)
-			http.Error(w, err.Error(), 404)
+
+		http.Error(w, err.Error(), 404)
 			return
 	}
 
@@ -110,13 +112,12 @@ func CheckOtherServers(path string, w http.ResponseWriter, file *models.FileMode
 			http.Error(w,"Couldnt find a file anywhere :(", 404)
 			return nil
 		}
-		fmt.Println(file.VersionNumber)
 		fmt.Println(maxVersion)
 		// update my file
 		if file == nil || file.VersionNumber < maxVersion {
 			err := ioutil.WriteFile("file-server/"+latestFile.File.ID, latestFile.FileContents, 0644)
 			if err != nil {
-				http.Error(w,"Couldnt write the new file to disk", 404)
+				http.Error(w,"Couldnt write the new file to disk " + err.Error(), 404)
 				return nil
 			}
 			repository.FileMutex.Lock()
@@ -202,10 +203,9 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error Retrieving the File")
 		fmt.Println(err)
 		repository.FileMutex.Unlock()
-
+		file.Close()
 		return
 	}
-	defer file.Close()
 	fmt.Printf("Uploaded File: %+v\n", handler.Filename)
 	fmt.Printf("File Size: %+v\n", handler.Size)
 	fmt.Printf("MIME Header: %+v\n", handler.Header)
@@ -213,7 +213,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.NewUUID()
 	if err != nil {
 		repository.FileMutex.Unlock()
-
+		file.Close()
 		fmt.Println(err)
 		return
 	}
@@ -223,10 +223,11 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	fileBytes, err := ioutil.ReadAll(file)
 	if err != nil {
 		repository.FileMutex.Unlock()
-
+		file.Close()
 		fmt.Println(err)
 		return
 	}
+	file.Close()
 	// write this byte array to our temporary file
 	//tempFile.Write(fileBytes)
 	// return that we have successfully uploaded our file!
@@ -268,4 +269,27 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	FileChannel <- fileRequest
 	 // END FROM FILE REPOSITORY
 	fmt.Println(fileRepository)
+}
+
+func CleanFiles() {
+	var files []string
+
+	root := "file-server"
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range files {
+		fmt.Println(file)
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(f)
+		f.Close()
+	}
 }

@@ -1,1 +1,2 @@
-"server/file-server/*" 
+server/file-server/*
+client/node_modules/*
