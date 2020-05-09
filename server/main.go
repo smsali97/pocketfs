@@ -39,8 +39,7 @@ func GetOutboundIP() net.IP {
 func main() {
 	IP_ADDRESS := GetOutboundIP()
 	fmt.Println("My IP: " + IP_ADDRESS.String())
-	return
-
+	
 	mask := net.CIDRMask(24, 32)
 	ip := net.IP(IP_ADDRESS)
 	broadcast := makeBroadcast(ip, mask)
