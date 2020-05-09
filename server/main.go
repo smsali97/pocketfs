@@ -6,12 +6,12 @@ import (
 	"../server/util"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"time"
 )
 
-var IP_ADDRESS = []byte{192, 168, 18, 21}
 var IP = "192.168.18.21"
 var PORT = "49401"
 const SUBNET_MASK = "255.255.255.0"
@@ -24,7 +24,22 @@ func setupRoutes() {
 	http.ListenAndServe(":8080", nil)
 }
 
+func GetOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
+}
+
 func main() {
+	IP_ADDRESS := GetOutboundIP()
+	fmt.Println("My IP: " + IP_ADDRESS.String())
+	return
 
 	mask := net.CIDRMask(24, 32)
 	ip := net.IP(IP_ADDRESS)
