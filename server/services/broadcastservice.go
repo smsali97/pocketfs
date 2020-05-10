@@ -103,7 +103,7 @@ func giveDirectories(id string) {
 	repository.ServerMutex.RLock()
 	serverRepository := repository.GetServerRepository()
 	defer repository.ServerMutex.RUnlock()
-	url := serverRepository[id].IP + "/directory"
+	url := serverRepository[id].IP + ":8080/directory"
 
 	restClient := http.Client{
 		Timeout: time.Second * 20, // Maximum of 2 secs
@@ -125,7 +125,7 @@ func giveDirectories(id string) {
 	res, getErr := restClient.Do(req)
 	if getErr != nil {
 		fmt.Println("Couldnt get from server ")
-		fmt.Println(err)
+		fmt.Println(getErr)
 		return
 	}
 	body, readErr := ioutil.ReadAll(res.Body)
