@@ -1,19 +1,20 @@
 package main
 
 import (
-	"../server/repository"
-	"../server/services"
-	"../server/util"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"time"
+
+	"../server/repository"
+	"../server/services"
+	"../server/util"
 )
 
-var IP = "192.168.18.21"
 var PORT = "49401"
+
 const SUBNET_MASK = "255.255.255.0"
 
 func setupRoutes() {
@@ -39,16 +40,16 @@ func GetOutboundIP() net.IP {
 func main() {
 	IP_ADDRESS := GetOutboundIP()
 	fmt.Println("My IP: " + IP_ADDRESS.String())
-	
+
 	mask := net.CIDRMask(24, 32)
 	ip := net.IP(IP_ADDRESS)
 	broadcast := makeBroadcast(ip, mask)
 
-	services.AddServer(IP, PORT) // add yourself to the repository
+	services.AddServer(IP_ADDRESS.String(), PORT) // add yourself to the repository
 
 	services.CleanFiles()
 	go setupRoutes()
-	go services.ListenForBroadcast(IP, PORT, broadcast.String())
+	go services.ListenForBroadcast(IP_ADDRESS.String(), PORT, broadcast.String())
 
 	services.SendHello(broadcast.String(), PORT) // send hello to others so they know you exist and can contact you
 

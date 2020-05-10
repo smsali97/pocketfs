@@ -1,2 +1,4 @@
 server/file-server/*
+server/server.exe
 client/node_modules/*
+build/*
