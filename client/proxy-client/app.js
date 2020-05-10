@@ -14,7 +14,7 @@ srv.on("listening", function () {
     console.log("server listening " + address.address + ":" + address.port);
   });
   
-  srv.bind(49401)
+  srv.bind(2222)
 
 
 
