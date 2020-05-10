@@ -95,6 +95,7 @@ func pingServers(broadcast net.IP) {
 	ctr := 0
 	for {
 		repository.ServerMutex.RLock()
+		repository.CurrentServer.TimeSinceLastAlive = time.Now().Sub(repository.CurrentServer.LastSeen).Seconds()
 		server, err := json.Marshal(repository.CurrentServer)
 		repository.ServerMutex.RUnlock()
 		util.CheckError(err)
