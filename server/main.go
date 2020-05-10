@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"../server/repository"
@@ -48,14 +49,32 @@ func main() {
 	services.AddServer(IP_ADDRESS.String(), PORT) // add yourself to the repository
 
 	services.CleanFiles()
-	go setupRoutes()
-	go services.ListenForBroadcast(IP_ADDRESS.String(), PORT, broadcast.String())
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		setupRoutes()
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		services.ListenForBroadcast(IP_ADDRESS.String(), PORT, broadcast.String())
+	}()
 
 	services.SendHello(broadcast.String(), PORT) // send hello to others so they know you exist and can contact you
 
-	go services.HandleFileTransfers() // handle incoming and outgoing file transfers
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		services.HandleFileTransfers()
+	}() // handle incoming and outgoing file transfers
 
-	pingServers(broadcast) // periodically ping servers
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pingServers(broadcast) // periodically ping servers
+	}()
+
 }
 
 func pingServers(broadcast net.IP) {
