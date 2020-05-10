@@ -5,7 +5,7 @@ const WebSocket = require('ws')
 const wss = new WebSocket.Server({ port: 8000 })
 
 //Initialize a UDP server to listen for json payloads
-var srv = dgram.createSocket("udp4");
+var srv = dgram.createSocket({ type: 'udp4', reuseAddr: true });
 var flag = false
 var wes;
 
