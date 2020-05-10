@@ -35,6 +35,7 @@ wss.on('close', () => {
 })
 
 srv.on("message", function (msg, rinfo) {
+    console.log(`server got: ${msg}`)
     // " from " + rinfo.address + ":" + rinfo.port
    if (flag) wes.send("" + msg)
 });

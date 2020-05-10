@@ -30,7 +30,7 @@ func ListenForBroadcast(ip string, port string, broadcast string) {
 		commands := strings.Split(string(b[:n]), " ")
 		switch commands[0] {
 		case "PING":
-			handlePing(commands)
+			handlePing(commands, broadcast)
 			break
 		case "HI":
 			handleHello(commands)
@@ -40,7 +40,7 @@ func ListenForBroadcast(ip string, port string, broadcast string) {
 	}
 }
 
-func handlePing(commands []string) {
+func handlePing(commands []string, broadcast string) {
 	// TODO: handle case where you do not know about the server?
 	if len(commands) < 2 {
 		util.RaiseCustomError("Invalid Command Given For Ping")
@@ -53,6 +53,7 @@ func handlePing(commands []string) {
 	util.CheckError(err)
 	serverID := server.ID
 
+
 	// youve seen the server before
 	if serverRepository[serverID] != nil {
 		serverRepository[serverID].Latency = time.Since(serverRepository[serverID].LastSeen).Seconds()
@@ -63,6 +64,11 @@ func handlePing(commands []string) {
 		serverRepository[server.ID] = &server
 	}
 	repository.ServerMutex.Unlock()
+	CLIENT_PORT := "2222"
+	addr2, err := net.ResolveUDPAddr("udp4", broadcast+":"+CLIENT_PORT)
+	conn2, err := net.DialUDP("udp4", nil, addr2)
+	_, err = conn2.Write([]byte(fmt.Sprintf("PING %s", serverRepository[server.ID])))
+
 }
 
 func handleHello(commands []string) {

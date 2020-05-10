@@ -78,18 +78,16 @@ func main() {
 }
 
 func pingServers(broadcast net.IP) {
-	CLIENT_PORT := "2222"
 	// I do not exist yet, how can I ping?!
 	if repository.CurrentServer == nil {
 		return
 	}
 
 	addr, err := net.ResolveUDPAddr("udp4", broadcast.String()+":"+PORT)
-	addr2, err := net.ResolveUDPAddr("udp4", broadcast.String()+":"+CLIENT_PORT)
+
 	util.CheckError(err)
 
 	conn, err := net.DialUDP("udp4", nil, addr)
-	conn2, err := net.DialUDP("udp4", nil, addr2)
 	util.CheckError(err)
 
 	ctr := 0
@@ -100,7 +98,6 @@ func pingServers(broadcast net.IP) {
 		repository.ServerMutex.RUnlock()
 		util.CheckError(err)
 		_, err = conn.Write([]byte(fmt.Sprintf("PING %s", server)))
-		_, err = conn2.Write([]byte(fmt.Sprintf("PING %s", server)))
 		util.CheckError(err)
 		ctr++
 		time.Sleep(5 * time.Second)
