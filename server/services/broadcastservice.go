@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -64,6 +65,8 @@ func handlePing(commands []string, broadcast string) {
 		serverRepository[server.ID] = &server
 	}
 	repository.ServerMutex.Unlock()
+
+	// send to proxy too
 	CLIENT_PORT := "2222"
 	addr2, err := net.ResolveUDPAddr("udp4", broadcast+":"+CLIENT_PORT)
 	conn2, err := net.DialUDP("udp4", nil, addr2)
@@ -86,14 +89,17 @@ func handleHello(commands []string) {
 
 		serverRepository[msgServer.ID] = &msgServer
 		repository.ServerMutex.Unlock()
-		go fetchDirectories(msgServer.ID)
+		go giveDirectories(msgServer.ID)
 		print(serverRepository)
 	}
 
 }
 
-func fetchDirectories(id string) {
-	const layout = "Mon Jan 02 15:04:05 -0700 2006"
+func giveDirectories(id string) {
+	if id == repository.CurrentServer.ID {
+		return // i dont need to give myself directories?
+	}
+
 	repository.ServerMutex.RLock()
 	serverRepository := repository.GetServerRepository()
 	defer repository.ServerMutex.RUnlock()
@@ -102,9 +108,19 @@ func fetchDirectories(id string) {
 	restClient := http.Client{
 		Timeout: time.Second * 20, // Maximum of 2 secs
 	}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	repository.ServerMutex.RLock()
+	var myFiles []models.FileModel
+	for _, file := range repository.GetFileRepository() {
+		myFiles = append(myFiles,*file)
+	}
+	repository.ServerMutex.RUnlock()
+	byteArray, err := json.Marshal(myFiles)
 	if err != nil {
-		fmt.Println("Couldnt fetch from server ")
+		fmt.Println("Give Directories: Couldnt send files")
+	}
+	req, err := http.NewRequest(http.MethodPut, url,bytes.NewBuffer(byteArray))
+	if err != nil {
+		fmt.Println("Give Directories: Couldnt call to server ")
 		fmt.Println(err)
 		return
 	}
@@ -120,32 +136,7 @@ func fetchDirectories(id string) {
 		fmt.Println(readErr)
 		return
 	}
-	var serverFiles []models.ClientFileModel
-	jsonErr := json.Unmarshal(body, &serverFiles)
-	if jsonErr != nil {
-		fmt.Println("Couldnt read from json")
-		fmt.Println(readErr)
-		return
-	}
-	for _, serverFile := range serverFiles {
-		repository.FileMutex.Lock()
-		repo := repository.GetFileRepository()
-		if repo[serverFile.Path] == nil || repo[serverFile.Path].VersionNumber < serverFile.VersionNumber {
-			timeParse, _ := time.Parse(layout, serverFile.Modified)
-			newFile := &models.FileModel{
-				ID:            serverFile.ID,
-				IsDirectory:   serverFile.IsDirectory,
-				Path:          serverFile.Path,
-				Name:          serverFile.Name,
-				VersionNumber: serverFile.VersionNumber,
-				LastModified:  timeParse,
-				SizeInBytes:   serverFile.SizeInBytes,
-			}
-			repo[serverFile.Path] = newFile
-			repository.FileMutex.Unlock()
-		}
-	}
-
+	fmt.Println("I got this from the server after sending files " + string(body))
 }
 
 func SendHello(broadcast string, port string) {

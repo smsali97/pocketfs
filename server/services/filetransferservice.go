@@ -72,15 +72,17 @@ func handleOutgoingFiles() {
 		SENT_CTR := 0
 		QUORUM_CTR := 0
 		var waitGroup sync.WaitGroup
-
-		for _, server := range repository.GetServerRepository() {
+		serverRepo := repository.GetServerRepository()
+		for _, server := range serverRepo {
 			if !server.IsAlive {
 				continue
 			}
 
 			client, err := rpc.Dial("tcp", server.IP+":"+RPC_PORT)
 			if err != nil {
-				fmt.Println("%v Server is down", server.IP)
+				fmt.Println(server.IP + " Server is down")
+				delete(serverRepo,server.IP)
+				continue
 			}
 			reply := &filemessage.FileMessageReply{}
 

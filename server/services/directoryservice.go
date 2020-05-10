@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func MainDirectoryService(w http.ResponseWriter, r *http.Request) {
@@ -20,16 +21,52 @@ func MainDirectoryService(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		AddDirectory(w, r)
+		return
 	case "DELETE":
 		RemoveDirectory(w, r)
+		return
 	case "GET":
 		GetDirectories(w,r)
+		return
+	case "PUT":
+		PutDirectories(w,r)
+		return
 	case "OPTIONS":
 		w.WriteHeader(http.StatusOK)
 		return
 	default:
 		http.Error(w, r.Method+" Method Not supported In Directory Service", 405)
 	}
+}
+
+func PutDirectories(w http.ResponseWriter, r *http.Request) {
+	var serverFiles []models.ClientFileModel
+	decoder := json.NewDecoder(r.Body)
+	jsonErr := decoder.Decode(&serverFiles)
+	if jsonErr != nil {
+		fmt.Println("Couldnt read from json")
+		return
+	}
+	const layout = "Mon Jan 02 15:04:05 -0700 2006"
+	for _, serverFile := range serverFiles {
+		repository.FileMutex.Lock()
+		repo := repository.GetFileRepository()
+		if repo[serverFile.Path] == nil || repo[serverFile.Path].VersionNumber < serverFile.VersionNumber {
+			timeParse, _ := time.Parse(layout, serverFile.Modified)
+			newFile := &models.FileModel{
+				ID:            serverFile.ID,
+				IsDirectory:   serverFile.IsDirectory,
+				Path:          serverFile.Path,
+				Name:          serverFile.Name,
+				VersionNumber: serverFile.VersionNumber,
+				LastModified:  timeParse,
+				SizeInBytes:   serverFile.SizeInBytes,
+			}
+			repo[serverFile.Path] = newFile
+		}
+	}
+	repository.FileMutex.Unlock()
+	w.Write([]byte("success"))
 }
 
 func GetDirectories(w http.ResponseWriter, r *http.Request) {

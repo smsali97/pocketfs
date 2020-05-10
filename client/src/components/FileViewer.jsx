@@ -46,7 +46,9 @@ class FileViewer extends React.Component {
               let newServers = this.state.servers.filter( e => 
                 e['ip'] !== serverIp["ip"] 
               )
-              newServers.push(serverIp)
+              if (serverIp["lastSeen"] !== 0) {
+                newServers.push(serverIp)
+              }
               newServers.sort((a, b) => {
                 return a.latency - b.latency;
               });
