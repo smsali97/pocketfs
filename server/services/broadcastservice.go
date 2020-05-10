@@ -112,7 +112,6 @@ func giveDirectories(id string) {
 	for _, file := range repository.GetFileRepository() {
 		myFiles = append(myFiles,*file)
 	}
-	repository.ServerMutex.RUnlock()
 	byteArray, err := json.Marshal(myFiles)
 	if err != nil {
 		fmt.Println("Give Directories: Couldnt send files")
