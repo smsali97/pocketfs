@@ -1,9 +1,6 @@
 package services
 
 import (
-	"../models"
-	"../repository"
-	"../util"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +8,10 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"../models"
+	"../repository"
+	"../util"
 )
 
 var MAX_DATAGRAM_SIZE = 8192
@@ -119,7 +120,7 @@ func fetchDirectories(id string) {
 		fmt.Println(readErr)
 		return
 	}
-	for _,serverFile := range serverFiles {
+	for _, serverFile := range serverFiles {
 		repository.FileMutex.Lock()
 		repo := repository.GetFileRepository()
 		if repo[serverFile.Path] == nil || repo[serverFile.Path].VersionNumber < serverFile.VersionNumber {
@@ -137,7 +138,6 @@ func fetchDirectories(id string) {
 			repository.FileMutex.Unlock()
 		}
 	}
-
 
 }
 
