@@ -59,7 +59,7 @@ func main() {
 }
 
 func pingServers(broadcast net.IP) {
-	CLIENT_PORT := 2222
+	CLIENT_PORT := "2222"
 	// I do not exist yet, how can I ping?!
 	if repository.CurrentServer == nil {
 		return
@@ -70,7 +70,7 @@ func pingServers(broadcast net.IP) {
 	util.CheckError(err)
 
 	conn, err := net.DialUDP("udp4", nil, addr)
-	conn2, err := net.DialUDP("udp4", nil, addr)
+	conn2, err := net.DialUDP("udp4", nil, addr2)
 	util.CheckError(err)
 
 	ctr := 0
