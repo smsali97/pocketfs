@@ -275,7 +275,6 @@ func CleanFiles() {
 	var files []string
 
 	root := "file-server"
-	_ = os.Mkdir(root, 0700) // write directory if doesnt exist
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		files = append(files, path)
@@ -287,4 +286,6 @@ func CleanFiles() {
 	for _, file := range files {
 		os.Remove(file)
 	}
+	_ = os.Mkdir(root, 0700) // write directory if doesnt exist
+
 }
