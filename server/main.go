@@ -74,7 +74,7 @@ func main() {
 		defer wg.Done()
 		pingServers(broadcast) // periodically ping servers
 	}()
-
+	wg.Wait()
 }
 
 func pingServers(broadcast net.IP) {
