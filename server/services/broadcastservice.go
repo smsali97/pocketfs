@@ -67,7 +67,8 @@ func handlePing(commands []string, broadcast string) {
 	CLIENT_PORT := "2222"
 	addr2, err := net.ResolveUDPAddr("udp4", broadcast+":"+CLIENT_PORT)
 	conn2, err := net.DialUDP("udp4", nil, addr2)
-	_, err = conn2.Write([]byte(fmt.Sprintf("PING %v", serverRepository[server.ID])))
+	server2, err := json.Marshal(serverRepository[server.ID])
+	_, err = conn2.Write([]byte(fmt.Sprintf("PING %s", server2)))
 
 }
 
