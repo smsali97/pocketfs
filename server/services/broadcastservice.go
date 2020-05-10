@@ -108,7 +108,6 @@ func giveDirectories(id string) {
 	restClient := http.Client{
 		Timeout: time.Second * 20, // Maximum of 2 secs
 	}
-	repository.ServerMutex.RLock()
 	var myFiles []models.FileModel
 	for _, file := range repository.GetFileRepository() {
 		myFiles = append(myFiles,*file)
