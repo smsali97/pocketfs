@@ -11,9 +11,34 @@
 This document is divided in two sections:
 
 - Part 1: The Architecture 
+
 - Part 2:  Help / Usage Guidelines
 
+# Usage
 
+For running server:
+
+```go
+cd server && go build server && ./server
+```
+
+For running the proxy server (client-side)
+
+```
+cd client && node app.js
+```
+
+For running the web client
+
+```javascript
+cd client && npm install && serve build
+```
+
+## Sample Screenshot:
+
+![Screenshot](screenshot.png)
+
+# Architecture
 
 To make the understanding of the file system easier I have decided to divide the distributed file system into several modules (or services, analogous in a SOA Service-Oriented Architecture) for easier understanding of the whole system.
 
@@ -23,15 +48,11 @@ To make the understanding of the file system easier I have decided to divide the
 
 I wanted to keep my application scalable, so that server nodes can easily be added and removed when needed, and even though one idea that could have been possible was that to have an initial configuration of nodes and once initial communication is established list of servers can be exchanged between servers and between clients.
 
-Instead, I have adopted to use an approach that uses *UDP Broadcasts*\* in which whenever a server comes alive it sends a *HELLO: Im alive* signature message to the network. In response people know that this server has come alive and gives it the latest copy of the directory to achieve a consistent image across servers. 	
+Instead, I have adopted to use an approach that uses *UDP Broadcasts*\* in which whenever a server comes alive it sends a *HELLO: IM ALIVE* signature message to the network. In response other server nodes know that this server has come alive and gives it the latest copy of the directory to achieve a consistent image across servers. 	
 
 Once that's done it goes in *PING Mode* and pings its server signature so that all of the servers can be updated regarding the status of the node and for client side it is used to track the latency of the server which becomes helpful especially when client needs to query for files since it will always ask the server with the least amount of load.
 
-
-
 *One of the things I plan to do in the future is to shift this to a multicast approach for more security and better performance.
-
-
 
 ## Directory Service
 
@@ -62,10 +83,21 @@ For this I had to first decide on supporting the simplistic upload download mode
 
 Once a server receives a file request, it is then added to an asynchronous channel (go's terminology for a data transfer pipe) to the file transfer service. The file transfer service, which is running on a separate thread will remain blocked once it receives new File Requests to be added. once it receives it it will then call the FIle Message Service for each server available in its repository via RPC calls using TCP and then note down all of the successful responses it receives from each server in the form of a Quorum Counter
 
-> Architecture Choice: Implementing a Read/Write Quorum for the application to maintain consitency or
+> Architecture Choice: Implementing a Read/Write Quorum for the application to maintain consistency
+
+For this application I have adopted a mixture. For any sort of written transaction *(i.e File Writes, Directory Writes, Delete Directory, Delete Files)* it requires the write quorum, which is current set at N-1 , i.e at most one node can fail, for the transaction to suceed. To implement this after every request it is placed into the staging area where it waits either for 
+
+- the timeout to expire (to automatically rollback if no acknowledgement received from origin server)
+
+- or the transaction to succeed or fail, contingent upon the other nodes.
+
+For file reading instead I have opted to use a mechanism in which the node first requests all available servers to give their files and then ultimately the latest version is sent to the client (also in case of mismatch the versions, the stale file is updated as well. 
+
+The diagram of some the flows are shown below: 
 
 ![DOS Diagram](DOS Diagram.png)
 
 **DISCLAIMER:**
 
 While in this diagram it is clear that all file/directory requests are transferred immediately. It will be up to the receiving servers when to handle it since it is running on another thread and only once that thread comes into running (with new incoming data) will it get the latest copy of the files. However, leveraging multiple cores can be performant as this enables receival of new files simultaneously but no explicit guarantee can be made as to when the server will receive the file. Usage of mutexes however enables all of the concurrent transactions to be executed in a synchronized manner but the ordering cannot be guaranteed by the file system.
+

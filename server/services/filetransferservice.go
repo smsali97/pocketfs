@@ -113,7 +113,7 @@ func handleOutgoingFiles() {
 		}
 		waitGroup.Wait()
 		fmt.Printf("Got a quorum of %d for %d\n", QUORUM_CTR, SENT_CTR)
-		if SENT_CTR - QUORUM_CTR <= 1 {
+		if SENT_CTR - QUORUM_CTR <= 1 && QUORUM_CTR > 0 {
 			fmt.Println("Committing transaction..")
 			statusRequest := filemessage.StatusRequest{
 				Id:    fileRequest.RequestId,
