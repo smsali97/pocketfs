@@ -114,7 +114,9 @@ func CheckOtherServers(path string, w http.ResponseWriter, file *models.FileMode
 		}
 		fmt.Println(maxVersion)
 		// update my file
-		if file == nil || file.VersionNumber < maxVersion {
+		//Check if i have the file contents or not
+		 _, err := os.Stat("file-server/" + file.ID)
+		if file == nil || os.IsNotExist(err) || file.VersionNumber < maxVersion {
 			err := ioutil.WriteFile("file-server/"+latestFile.File.ID, latestFile.FileContents, 0644)
 			if err != nil {
 				http.Error(w,"Couldnt write the new file to disk " + err.Error(), 404)
