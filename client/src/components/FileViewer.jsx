@@ -44,9 +44,9 @@ class FileViewer extends React.Component {
               var serverIp = JSON.parse(message.replace('PING ',''))
 
               let newServers = this.state.servers.filter( e => 
-                e['ip'] !== serverIp["ip"] 
+                e['ip'] !== serverIp["ip"]
               )
-              if (serverIp["lastSeen"] !== 0) {
+              if (serverIp["timeSinceLastAlive"] !== 0) {
                 newServers.push(serverIp)
               }
               newServers.sort((a, b) => {
