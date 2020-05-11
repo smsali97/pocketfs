@@ -103,7 +103,7 @@ func giveDirectories(id string) {
 	repository.ServerMutex.RLock()
 	serverRepository := repository.GetServerRepository()
 	defer repository.ServerMutex.RUnlock()
-	url := serverRepository[id].IP + ":8080/directory"
+	url := "//" + serverRepository[id].IP + ":8080/directory"
 
 	restClient := http.Client{
 		Timeout: time.Second * 20, // Maximum of 2 secs
