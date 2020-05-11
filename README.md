@@ -60,7 +60,12 @@ For this I had to first decide on supporting the simplistic upload download mode
 
 ## File Transfer Service
 
-Once a server receives a file request, it is then added to an asynchronous channel (go's terminology for a data transfer pipe) to the file transfer service. The file transfer service, which is running on a separate thread will remain blocked once it receives new FileRequests to be added. once it receives it it will then call the FIle Message Service for each server available in its repository via RPC calls using TCP and then note down all of the successful responses it receives from each server in the form of a Quorum Counter
+Once a server receives a file request, it is then added to an asynchronous channel (go's terminology for a data transfer pipe) to the file transfer service. The file transfer service, which is running on a separate thread will remain blocked once it receives new File Requests to be added. once it receives it it will then call the FIle Message Service for each server available in its repository via RPC calls using TCP and then note down all of the successful responses it receives from each server in the form of a Quorum Counter
 
 > Architecture Choice: Implementing a Read/Write Quorum for the application to maintain consitency or
 
+![DOS Diagram](DOS Diagram.png)
+
+**DISCLAIMER:**
+
+While in this diagram it is clear that all file/directory requests are transferred immediately. It will be up to the receiving servers when to handle it since it is running on another thread and only once that thread comes into running (with new incoming data) will it get the latest copy of the files. However, leveraging multiple cores can be performant as this enables receival of new files simultaneously but no explicit guarantee can be made as to when the server will receive the file. Usage of mutexes however enables all of the concurrent transactions to be executed in a synchronized manner but the ordering cannot be guaranteed by the file system.

@@ -140,7 +140,11 @@ func AddDirectory(w http.ResponseWriter, r *http.Request) {
 			ID:          id.String(),
 			//Children:    []*models.FileModel{},
 			IsDirectory: true}
-		FileChannel <- &filemessage.FileMessageRequest{File:m , FileContents: nil, MessageType: filemessage.CREATE}
+		requestId, err := uuid.NewUUID()
+		if err != nil {
+			fmt.Println("Failure in generating new id")
+		}
+		FileChannel <- &filemessage.FileMessageRequest{RequestId: requestId.String(), File:m , FileContents: nil, MessageType: filemessage.CREATE}
 	}
 
 }
@@ -157,7 +161,12 @@ func RemoveDirectory(w http.ResponseWriter, r *http.Request) {
 	repository.FileMutex.RLock()
 	file := repository.GetFileRepository()[qpath[0]]
 	repository.FileMutex.RUnlock()
+	requestId, err := uuid.NewUUID()
+	if err != nil {
+		fmt.Println("Failure in generating new id")
+	}
 	FileChannel <- &filemessage.FileMessageRequest{
+		RequestId: requestId.String(),
 		File:        file,
 		FileContents: nil,
 		MessageType:  filemessage.DELETE,

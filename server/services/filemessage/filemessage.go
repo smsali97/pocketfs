@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
 type FileMessage int
@@ -21,27 +22,19 @@ const (
 )
 
 type FileMessageRequest struct {
+	RequestId string
 	File *models.FileModel
 	FileContents []byte
 	PreviousID string
 	MessageType FileMessageType
+	Confirmed chan bool
 }
 
 type FileMessageReply struct {
+	OriginalRequestId string
 	IP string
 	IsSuccessful bool
 }
-
-type DirectoryMessageRequest struct {
-	File *models.FileModel
-	FileContents []byte
-}
-
-type DirectoryMessageReply struct {
-	IP string
-	IsSuccessful bool
-}
-// TODO: Send Directory updates too
 
 type AskFileRequest struct {
 	FilePath string
@@ -52,6 +45,47 @@ type AskFileReply struct {
 	IsSuccessful bool
 }
 
+type StatusRequest struct {
+	Id string
+	Status bool
+}
+
+
+func init() {
+	RequestStatus = make(map[string]bool)
+}
+
+var RequestStatus map[string]bool
+
+func FetchStatus(id string) (bool, error) {
+	timeout := time.After(10 * time.Second)
+	tick := time.Tick(250 * time.Millisecond)
+	// Keep trying until we're timed out or got a result or got an error
+	for {
+		select {
+		// Got a timeout! fail with a timeout error
+		case <-timeout:
+			return false, errors.New("request timed out")
+		// Got a tick, we should check on doSomething()
+		case <-tick:
+			data, ok :=  RequestStatus[id]
+			// Error from doSomething(), we should bail
+			if ok {
+				return data, nil
+			}
+		}
+	}
+}
+
+func (t *FileMessage) UpdateStatus(request StatusRequest, reply *bool) error {
+	RequestStatus[request.Id] = request.Status
+	*reply = true
+	return nil
+}
+
+func RemoveStatusEntry(id string) {
+	delete(RequestStatus,id) // clean up
+}
 
 func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) error {
 	reply.IsSuccessful = false
@@ -81,17 +115,9 @@ func (t *FileMessage) AskForFile(request *AskFileRequest, reply *AskFileReply) e
 
 
 func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageReply) error {
-	// check if it should be routed to send directory
-
-	if request.File.IsDirectory {
-		if request.MessageType == DELETE {
-			return DeleteDirectory(request,reply)
-		}
-		return SendDirectory(request,reply)
-	}
-	if request.MessageType == DELETE {
-		return DeleteFile(request, reply)
- 	} else if request.MessageType == UPDATE {
+	// chesck if it should be routed to send directory
+	// TODO: sending file commit for one only?
+	if request.MessageType == UPDATE {
 		err := os.Remove("file-server/"+ request.PreviousID)
 		if err != nil {
 			fmt.Println("Unable to delete my own previous file " + err.Error())
@@ -123,22 +149,21 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 	} else {
 		fmt.Println("Wrote " ,n," of bytes")
 	}
-	err = tempFile.Sync()
-	if err != nil {
-		return err
-	}
+	//TODO: Disabled file sync for now
+	//err = tempFile.Sync()
+	//if err != nil {
+	//	return err
+	//}
 	if fileRepository[fileSent.Path] != nil {
 		err := os.Remove("file-server/" + fileRepository[fileSent.Path].ID)
 		if err != nil {
+			fmt.Println("Couldnt remove my previous file")
 			return err
 		}
-		// TODO: Check Path formulation
-		fileRepository[fileSent.Path].VersionNumber = fileSent.VersionNumber
-		fileRepository[fileSent.Path].LastModified = fileSent.LastModified
-		fileRepository[fileSent.Path].ID =  fileSent.ID
-		fileRepository[fileSent.Path].SizeInBytes = fileSent.SizeInBytes
-	} else {
-		fileRepository[fileSent.Path] = fileSent
+		//fileRepository[fileSent.Path].VersionNumber = fileSent.VersionNumber
+		//fileRepository[fileSent.Path].LastModified = fileSent.LastModified
+		//fileRepository[fileSent.Path].ID =  fileSent.ID
+		//fileRepository[fileSent.Path].SizeInBytes = fileSent.SizeInBytes
 	}
 	err = tempFile.Close()
 	if err != nil {
@@ -146,11 +171,25 @@ func (t *FileMessage) SendFile(request *FileMessageRequest, reply *FileMessageRe
 	}
 	reply.IsSuccessful = true
 	reply.IP = repository.CurrentServer.IP
-	print(fileRepository)
+	go func() {
+		ok, error := FetchStatus(request.RequestId)
+		if error != nil {
+			fmt.Println(error.Error())
+			return
+		}
+		if !ok {
+			fmt.Println("Aborting.. Quorum failed")
+			return
+		}
+		fmt.Println("Got Acknowledgement from server. Performing operation")
+		delete(RequestStatus,request.RequestId)
+		fileRepository[fileSent.Path] = fileSent
+		print(fileRepository)
+	}()
 	return nil
 }
 
-func DeleteFile(request *FileMessageRequest, reply *FileMessageReply) error {
+func (t *FileMessage) DeleteFile(request *FileMessageRequest, reply *FileMessageReply) error {
 	reply.IsSuccessful = false
 
 	repository.FileMutex.Lock()
@@ -165,11 +204,25 @@ func DeleteFile(request *FileMessageRequest, reply *FileMessageReply) error {
 	if err != nil {
 		return errors.New("Unable to physically remove the file from disk")
 	}
-	delete(fileRepository,fileModel.Path)
+	go func() {
+		ok, error := FetchStatus(request.RequestId)
+		if error != nil {
+			fmt.Println(error.Error())
+			return
+		}
+		if !ok {
+			fmt.Println("Aborting.. Quorum failed")
+			return
+		}
+		fmt.Println("Got Acknowledgement from server. Performing operation")
+		delete(RequestStatus,request.RequestId)
+		delete(fileRepository,fileModel.Path)
+		print(fileRepository)
+	}()
 	return nil
 }
 
-func DeleteDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
+func (t *FileMessage) DeleteDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
 	reply.IsSuccessful = false
 	repository.FileMutex.Lock()
 	//paths := strings.Split(qpath[0], "/")
@@ -182,23 +235,41 @@ func DeleteDirectory(request *FileMessageRequest, reply *FileMessageReply) error
 	path := request.File.Path
 	// foo/bar/baz <--- foo/bar
 	isDeleted := false
+	var pathsToDelete []string
 	for key := range fileRepository {
 		if len(path) <= len(key) && key[:len(path)] == path {
-			delete(fileRepository, path)
+			pathsToDelete = append(pathsToDelete, path)
 			// TODO: What if its a file
 			isDeleted = true
 		}
 	}
-	repository.FileMutex.Unlock()
+	defer repository.FileMutex.Unlock()
 	if !isDeleted {
 		return errors.New("Couldnt find any directory to delete with " + path)
 	}
 	reply.IsSuccessful = true
+	go func() {
+		ok, error := FetchStatus(request.RequestId)
+		if error != nil {
+			fmt.Println(error.Error())
+			return
+		}
+		if !ok {
+			fmt.Println("Aborting.. Quorum failed")
+			return
+		}
+		fmt.Println("Got Acknowledgement from server. Performing operation")
+		delete(RequestStatus,request.RequestId)
+		for _, path := range pathsToDelete {
+			delete(fileRepository, path)
+		}
+		print(fileRepository)
+	}()
 	fmt.Println(fileRepository)
 	return nil
 }
 
-func SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
+func (t *FileMessage) SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
 	reply.IsSuccessful = false
 	path := request.File.Path
 	paths := strings.Split(path, "/")
@@ -219,8 +290,22 @@ func SendDirectory(request *FileMessageRequest, reply *FileMessageReply) error {
 	if fileRepository[path] != nil {
 		return errors.New(path + " directory already exists in parent")
 	}
-	fileRepository[path] = request.File
 	reply.IsSuccessful = true
+	go func() {
+		ok, error := FetchStatus(request.RequestId)
+		if error != nil {
+			fmt.Println(error.Error())
+			return
+		}
+		if !ok {
+			fmt.Println("Aborting.. Quorum failed")
+			return
+		}
+		fmt.Println("Got Acknowledgement from server. Performing operation")
+		delete(RequestStatus,request.RequestId)
+		fileRepository[path] = request.File
+		print(fileRepository)
+	}()
 	print(fileRepository)
 	return nil
 }

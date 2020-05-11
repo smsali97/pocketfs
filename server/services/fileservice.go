@@ -154,7 +154,12 @@ func RemoveFile(w http.ResponseWriter, r *http.Request) {
 	if file == nil {
 		return
 	}
+	requestId, err := uuid.NewUUID()
+	if err != nil {
+		fmt.Println("Failure in generating new id")
+	}
 	FileChannel <- &filemessage.FileMessageRequest{
+		RequestId: requestId.String(),
 		File:         file,
 		FileContents: nil,
 		MessageType:  filemessage.DELETE,
@@ -262,7 +267,12 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Updated File " + newFile.Name)
 	}
 	repository.FileMutex.Unlock()
+	requestId, err := uuid.NewUUID()
+	if err != nil {
+		fmt.Println("Failure in generating new id")
+	}
 	fileRequest := &filemessage.FileMessageRequest{
+		RequestId:	requestId.String(),
 		File:         newFile,
 		FileContents: fileBytes,
 		MessageType: messageType,

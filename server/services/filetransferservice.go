@@ -18,6 +18,7 @@ func init() {
 	FileChannel = make(chan *filemessage.FileMessageRequest)
 	print("Instantiating channels...")
 	RPC_PORT = "1234"
+
 }
 
 func HandleFileTransfers() {
@@ -71,6 +72,7 @@ func handleOutgoingFiles() {
 		//SENDING_THRESHOLD := len(repository.GetServerRepository()) - 1
 		SENT_CTR := 0
 		QUORUM_CTR := 0
+		var requestIps []string
 		var waitGroup sync.WaitGroup
 		serverRepo := repository.GetServerRepository()
 		for _, server := range serverRepo {
@@ -85,11 +87,20 @@ func handleOutgoingFiles() {
 				continue
 			}
 			reply := &filemessage.FileMessageReply{}
-
+			requestIps = append(requestIps,server.IP)
 			waitGroup.Add(1)
 			go func() {
 				defer waitGroup.Done()
-				err := client.Call("FileMessage.SendFile", fileRequest, reply)
+				var err error
+				if fileRequest.MessageType == filemessage.CREATE && fileRequest.File.IsDirectory {
+					err = client.Call("FileMessage.SendDirectory", fileRequest, reply)
+				} else if fileRequest.MessageType == filemessage.DELETE && fileRequest.File.IsDirectory {
+					err = client.Call("FileMessage.DeleteDirectory", fileRequest, reply)
+				} else if fileRequest.MessageType == filemessage.DELETE {
+					err = client.Call("FileMessage.DeleteFile", fileRequest, reply)
+				}  else {
+					err = client.Call("FileMessage.SendFile", fileRequest, reply)
+				}
 				if err != nil {
 					fmt.Println(" error when sending message to server ", err, server.IP)
 				} else {
@@ -102,6 +113,27 @@ func handleOutgoingFiles() {
 		}
 		waitGroup.Wait()
 		fmt.Printf("Got a quorum of %d for %d\n", QUORUM_CTR, SENT_CTR)
+		if SENT_CTR - QUORUM_CTR <= 1 {
+			fmt.Println("Committing transaction..")
+			statusRequest := filemessage.StatusRequest{
+				Id:    fileRequest.RequestId,
+				Status: true,
+			}
+			for _, requestIp := range requestIps {
+				client, _ := rpc.Dial("tcp", requestIp+":"+RPC_PORT)
+				_ = client.Call("FileMessage.UpdateStatus", statusRequest, nil)
+			}
+		} else {
+			fmt.Println("Quorum failed. Rollback...")
+			statusRequest := filemessage.StatusRequest{
+				Id:    fileRequest.RequestId,
+				Status: false,
+			}
+			for _, requestIp := range requestIps {
+				client, _ := rpc.Dial("tcp", requestIp+":"+RPC_PORT)
+				_ = client.Call("FileMessage.UpdateStatus", statusRequest, nil)
+			}
+		}
 		repository.ServerMutex.RUnlock()
 
 	}
