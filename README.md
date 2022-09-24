@@ -1,5 +1,8 @@
 #  PocketFS
 
+![image](https://user-images.githubusercontent.com/23452477/192078124-f529fc3c-8020-45ba-aa5b-f8e0be1b83d4.png)
+
+
 *PocketFS* is named after the pocket gopher, the mascot for the Go Programming Language and because of its lightweight and simplistic nature 
 
 *PocketFS* is going to be a distributed file system which supports multiple nodes which can be added and removed dynamically and a client interface written in React that will interact with it.
