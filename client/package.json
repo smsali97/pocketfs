@@ -15,7 +15,7 @@
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
     "react-keyed-file-browser": "^1.8.0",
-    "react-scripts": "3.4.0",
+    "react-scripts": "5.0.1",
     "websocket": "^1.0.31"
   },
   "scripts": {
